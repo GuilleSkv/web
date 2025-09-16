@@ -1,1 +1,73 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Póker Web Básico</title>
+  <style>
+    body {
+      background-color: #1a1a1a;
+      color: #fff;
+      font-family: sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    .card {
+      display: inline-block;
+      background: #333;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 10px;
+      font-size: 24px;
+      box-shadow: 0 0 10px #000;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 18px;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Juego de Póker Web</h1>
+  <div id="hand"></div>
+  <button onclick="dealHand()">Repartir cartas</button>
 
+  <script>
+    const suits = ['♠', '♥', '♦', '♣'];
+    const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+
+    function getDeck() {
+      let deck = [];
+      for (let suit of suits) {
+        for (let value of values) {
+          deck.push(`${value}${suit}`);
+        }
+      }
+      return deck;
+    }
+
+    function shuffle(deck) {
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+      return deck;
+    }
+
+    function dealHand() {
+      const deck = shuffle(getDeck());
+      const hand = deck.slice(0, 5);
+      const handDiv = document.getElementById('hand');
+      handDiv.innerHTML = '';
+      hand.forEach(card => {
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'card';
+        cardDiv.textContent = card;
+        handDiv.appendChild(cardDiv);
+      });
+    }
+  </script>
+</body>
+</html>
