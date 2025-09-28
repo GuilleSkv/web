@@ -1,73 +1,59 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Póker Web Básico</title>
-  <style>
-    body {
-      background-color: #1a1a1a;
-      color: #fff;
-      font-family: sans-serif;
-      text-align: center;
-      padding: 20px;
-    }
-    .card {
-      display: inline-block;
-      background: #333;
-      border-radius: 8px;
-      padding: 20px;
-      margin: 10px;
-      font-size: 24px;
-      box-shadow: 0 0 10px #000;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 18px;
-      margin-top: 20px;
-      cursor: pointer;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streaming de Pantalla en Directo</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Juego de Póker Web</h1>
-  <div id="hand"></div>
-  <button onclick="dealHand()">Repartir cartas</button>
+    <div class="container">
+        <header>
+            <h1>🔴 Streaming de Pantalla en Directo</h1>
+            <div class="status">
+                <span id="status" class="status-offline">Offline</span>
+                <span id="connectionInfo"></span>
+            </div>
+        </header>
 
-  <script>
-    const suits = ['♠', '♥', '♦', '♣'];
-    const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+        <main>
+            <div class="video-container">
+                <img id="videoStream" src="" alt="Stream en directo">
+                <div id="loading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Conectando con el stream...</p>
+                </div>
+                <div id="error" class="error hidden">
+                    <p>❌ No se puede conectar con el stream</p>
+                    <button onclick="connectStream()">Reconectar</button>
+                </div>
+            </div>
 
-    function getDeck() {
-      let deck = [];
-      for (let suit of suits) {
-        for (let value of values) {
-          deck.push(`${value}${suit}`);
-        }
-      }
-      return deck;
-    }
+            <div class="info-panel">
+                <div class="info-item">
+                    <label>Última actualización:</label>
+                    <span id="lastUpdate">--:--:--</span>
+                </div>
+                <div class="info-item">
+                    <label>Calidad:</label>
+                    <span id="qualityInfo">--</span>
+                </div>
+                <div class="info-item">
+                    <label>Tiempo activo:</label>
+                    <span id="uptime">00:00:00</span>
+                </div>
+            </div>
+        </main>
 
-    function shuffle(deck) {
-      for (let i = deck.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [deck[i], deck[j]] = [deck[j], deck[i]];
-      }
-      return deck;
-    }
+        <footer>
+            <div class="controls">
+                <button onclick="refreshStream()" class="btn">🔄 Actualizar</button>
+                <button onclick="toggleFullscreen()" class="btn">📺 Pantalla Completa</button>
+                <button onclick="showHelp()" class="btn">❓ Ayuda</button>
+            </div>
+        </footer>
+    </div>
 
-    function dealHand() {
-      const deck = shuffle(getDeck());
-      const hand = deck.slice(0, 5);
-      const handDiv = document.getElementById('hand');
-      handDiv.innerHTML = '';
-      hand.forEach(card => {
-        const cardDiv = document.createElement('div');
-        cardDiv.className = 'card';
-        cardDiv.textContent = card;
-        handDiv.appendChild(cardDiv);
-      });
-    }
-  </script>
+    <script src="script.js"></script>
 </body>
 </html>
