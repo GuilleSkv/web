@@ -4,7 +4,98 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Streaming de Pantalla en Directo</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333; 
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            padding: 20px;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        h1 { color: #2c3e50; margin-bottom: 10px; }
+        .status { display: flex; justify-content: center; align-items: center; gap: 15px; }
+        .status-online { color: #27ae60; font-weight: bold; }
+        .status-offline { color: #e74c3c; font-weight: bold; }
+        .status-connecting { color: #f39c12; font-weight: bold; }
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #videoStream { max-width: 100%; max-height: 70vh; display: none; }
+        .loading { text-align: center; color: white; }
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error { text-align: center; color: white; padding: 20px; display: none; }
+        .info-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+        .controls { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn:hover { background: #5a6fd8; transform: translateY(-2px); }
+        @media (max-width: 768px) {
+            .container { margin: 10px; padding: 15px; }
+            h1 { font-size: 1.8em; }
+            .info-panel { grid-template-columns: 1fr; }
+            .controls { flex-direction: column; }
+            .btn { width: 100%; }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -23,9 +114,9 @@
                     <div class="spinner"></div>
                     <p>Conectando con el stream...</p>
                 </div>
-                <div id="error" class="error hidden">
+                <div id="error" class="error">
                     <p>❌ No se puede conectar con el stream</p>
-                    <button onclick="connectStream()">Reconectar</button>
+                    <button class="btn" onclick="connectStream()">Reconectar</button>
                 </div>
             </div>
 
@@ -47,13 +138,181 @@
 
         <footer>
             <div class="controls">
-                <button onclick="refreshStream()" class="btn">🔄 Actualizar</button>
-                <button onclick="toggleFullscreen()" class="btn">📺 Pantalla Completa</button>
-                <button onclick="showHelp()" class="btn">❓ Ayuda</button>
+                <button class="btn" onclick="refreshStream()">🔄 Actualizar</button>
+                <button class="btn" onclick="toggleFullscreen()">📺 Pantalla Completa</button>
+                <button class="btn" onclick="showHelp()">❓ Ayuda</button>
             </div>
         </footer>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        // =============================================
+        // CONFIGURACIÓN - ACTUALIZA ESTA URL
+        // =============================================
+        const PLAYIT_URL = 'https://TU_URL_DE_PLAYIT.playit.gg/video_feed';
+        // ⚠️ REEMPLAZA 'TU_URL_DE_PLAYIT' con la URL real de PlayIt
+        // Ejemplo: 'https://abc123-def456.playit.gg/video_feed'
+
+        // =============================================
+        // NO MODIFICAR A PARTIR DE AQUÍ
+        // =============================================
+        class ScreenStreamClient {
+            constructor() {
+                this.streamUrl = PLAYIT_URL;
+                this.videoElement = document.getElementById('videoStream');
+                this.statusElement = document.getElementById('status');
+                this.loadingElement = document.getElementById('loading');
+                this.errorElement = document.getElementById('error');
+                this.lastUpdateElement = document.getElementById('lastUpdate');
+                this.qualityElement = document.getElementById('qualityInfo');
+                this.uptimeElement = document.getElementById('uptime');
+                this.connectionInfoElement = document.getElementById('connectionInfo');
+                
+                this.startTime = new Date();
+                this.errorCount = 0;
+                this.maxErrors = 10;
+                this.reconnectDelay = 2000;
+                
+                this.init();
+            }
+            
+            init() {
+                this.updateUptime();
+                setInterval(() => this.updateUptime(), 1000);
+                this.connectStream();
+            }
+            
+            connectStream() {
+                this.setStatus('connecting', 'Conectando...');
+                this.showLoading();
+                this.hideError();
+                this.hideVideo();
+                
+                this.videoElement.src = this.streamUrl + '?t=' + Date.now();
+                this.videoElement.style.display = 'block';
+                this.setupEventListeners();
+            }
+            
+            setupEventListeners() {
+                this.videoElement.onload = () => this.onStreamConnected();
+                this.videoElement.onerror = () => this.onStreamError();
+                this.videoElement.onloadstart = () => this.onStreamLoading();
+            }
+            
+            onStreamConnected() {
+                this.setStatus('online', 'Conectado ✓');
+                this.hideLoading();
+                this.hideError();
+                this.showVideo();
+                this.errorCount = 0;
+                this.updateLastUpdateTime();
+            }
+            
+            onStreamError() {
+                this.errorCount++;
+                this.setStatus('offline', `Error (${this.errorCount}/${this.maxErrors})`);
+                this.hideLoading();
+                this.hideVideo();
+                
+                if (this.errorCount >= this.maxErrors) {
+                    this.showError();
+                } else {
+                    setTimeout(() => this.reconnect(), this.reconnectDelay);
+                }
+            }
+            
+            onStreamLoading() {
+                this.setStatus('connecting', 'Cargando stream...');
+                this.showLoading();
+            }
+            
+            reconnect() {
+                this.videoElement.src = this.streamUrl + '?t=' + Date.now();
+            }
+            
+            refreshStream() {
+                this.errorCount = 0;
+                this.connectStream();
+            }
+            
+            setStatus(type, message) {
+                this.statusElement.textContent = message;
+                this.statusElement.className = `status-${type}`;
+                this.connectionInfoElement.textContent = this.getConnectionInfo();
+            }
+            
+            getConnectionInfo() {
+                if (this.streamUrl.includes('playit.gg')) return 'vía PlayIt.gg';
+                if (this.streamUrl.includes('ngrok.io')) return 'vía ngrok';
+                return 'Conexión local';
+            }
+            
+            showLoading() { this.loadingElement.style.display = 'block'; }
+            hideLoading() { this.loadingElement.style.display = 'none'; }
+            showVideo() { this.videoElement.style.display = 'block'; }
+            hideVideo() { this.videoElement.style.display = 'none'; }
+            showError() { this.errorElement.style.display = 'block'; }
+            hideError() { this.errorElement.style.display = 'none'; }
+            
+            updateLastUpdateTime() {
+                this.lastUpdateElement.textContent = new Date().toLocaleTimeString();
+            }
+            
+            updateUptime() {
+                const now = new Date();
+                const diff = Math.floor((now - this.startTime) / 1000);
+                const hours = Math.floor(diff / 3600);
+                const minutes = Math.floor((diff % 3600) / 60);
+                const seconds = diff % 60;
+                this.uptimeElement.textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+
+        let streamClient;
+
+        function connectStream() {
+            if (!streamClient) {
+                streamClient = new ScreenStreamClient();
+            } else {
+                streamClient.refreshStream();
+            }
+        }
+
+        function refreshStream() {
+            if (streamClient) {
+                streamClient.refreshStream();
+            } else {
+                connectStream();
+            }
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function showHelp() {
+            alert(`INSTRUCCIONES:
+1. El portátil debe tener el script Python ejecutándose
+2. El ordenador principal debe tener PlayIt apuntando al portátil
+3. Esta web se conecta vía PlayIt
+
+📡 URL configurada: ${PLAYIT_URL}`);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            streamClient = new ScreenStreamClient();
+        });
+
+        setInterval(() => {
+            if (streamClient && streamClient.statusElement.className.includes('online')) {
+                streamClient.updateLastUpdateTime();
+            }
+        }, 5000);
+    </script>
 </body>
 </html>
